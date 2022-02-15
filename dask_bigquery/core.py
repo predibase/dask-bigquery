@@ -17,7 +17,7 @@ import dask_bigquery
 
 
 @contextmanager
-def bigquery_clients(project_id):
+def bigquery_clients(project_id, credentials=None):
     """This context manager is a temporary solution until there is an
     upstream solution to handle this.
     See googleapis/google-cloud-python#9457
@@ -30,7 +30,7 @@ def bigquery_clients(project_id):
         user_agent=f"dask-bigquery/{dask_bigquery.__version__}"
     )
 
-    with bigquery.Client(project_id, client_info=bq_client_info) as bq_client:
+    with bigquery.Client(project_id, client_info=bq_client_info, credentials=None if not credentials else credentials) as bq_client:
         bq_storage_client = bigquery_storage.BigQueryReadClient(
             credentials=bq_client._credentials,
             client_info=bqstorage_client_info,
@@ -91,6 +91,7 @@ def read_gbq(
     row_filter: str = "",
     columns: list[str] = None,
     read_kwargs: dict = None,
+    credentials = None
 ):
     """Read table as dask dataframe using BigQuery Storage API via Arrow format.
     Partitions will be approximately balanced according to BigQuery stream allocation logic.
@@ -115,7 +116,7 @@ def read_gbq(
         Dask DataFrame
     """
     read_kwargs = read_kwargs or {}
-    with bigquery_clients(project_id) as (bq_client, bqs_client):
+    with bigquery_clients(project_id, credentials) as (bq_client, bqs_client):
         table_ref = bq_client.get_table(f"{dataset_id}.{table_id}")
         if table_ref.table_type == "VIEW":
             raise TypeError("Table type VIEW not supported")
